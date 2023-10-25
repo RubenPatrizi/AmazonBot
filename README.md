@@ -37,9 +37,15 @@ Tracking parameters that can be configured:
 <li>Time interval between page refreshes</li>  
 </ul>
 
+<p align="right">
+<img src="readme_images/logger.png" width=400 alt="Logger example" align="left">
+
 Moreover the user can choose to track the product on different Amazon stores at the same time (specifically the five european Amazon websites minus Netherlands).
 In this case multiple threads will be created, one for each store.
-Each thread then communicates price reports to a logger window that can also be used to stop the tracking process.<br />
-The user can also decide to run Chrome tabs in headless mode, although it is mostly recommended when they want to receive an alert on the Telegram group.<br />
+Each thread then communicates price reports to a logger window that can also be used to stop the tracking process.
+  
+The user can also decide to run Chrome tabs in headless mode, although it is mostly recommended when they want to receive an alert on the Telegram group.
+  
 In the case where the program cannot complete a purchase in headless mode a new attempt will be performed non-headless.
 If a problem occours even in this mode a Telegram alert will be sent, whether the user provided his @ or not.
+</p>
