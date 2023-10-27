@@ -13,31 +13,38 @@ More specifically it can periodically check the product's price and buy it once 
 
 <p>&nbsp</p>
 
-<div align="left">
-<a><img src="readme_images/product_menu.png" width=400 alt="Product management example"></a>
-<a><img src="readme_images/other_options.png" width=370 alt="Seller and conditions example" align="right"></a>
+<div align="center">
+<a><img src="readme_images/product_menu.png" width="400"  alt="Product management example"></a>
 </div>
+Users can save products by providing the product ASIN and a name. They can also remove a previously saved product
+by selecting it from the drop-down menu. Information is stored in a separate json file.
 
-<p>
-  <em>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp         Product management menu &nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp</em>
-  <em>Seller and conditions</em>
-</p>
+<p>&nbsp</p>
+
+<div align="center">
+<a><img src="readme_images/other_options.png" width=400" alt="Seller and conditions example"></a>
+</div>
+Other tracking parameters that can be configured are product conditions (new or used) and sellers
+(as of now these checks are done on the text appearing in the product page).
+
 
 ---
 
-The GUI has been made using [CustomTkinter](https://github.com/TomSchimansky/CustomTkinter) and text is provided in both english and italian.
-Products can be saved in a json file (or deleted) using a specific menu.
-Account credentials can be saved as well: user's email and password will be encrypted using the cryptography library and stored in a txt file alongside the encryption key.
+The GUI has been made using [CustomTkinter](https://github.com/TomSchimansky/CustomTkinter) 
+and text is provided in both english and italian.
+Just like products, account credentials can be saved as well: user's email and password will be encrypted
+using the cryptography library and stored in a txt file alongside the encryption key. For better security
+all these three elements will be slightly modified before being saved.
 
-Tracking parameters that can be configured:
+All tracking parameters that can be configured:
 <ul>
 <li>Product price</li>
-<li>Product conditions (new or used)</li>
-<li>Seller</li>
+<li>Product conditions</li>
+<li>Sellers</li>
 <li>Time interval between page refreshes</li>  
 </ul>
 
-<p align="right">
+<p>
 <img src="readme_images/logger.png" width=400 alt="Logger example" align="left">
 
 Moreover the user can choose to track the product on different Amazon stores at the same time (specifically the five european Amazon websites minus Netherlands).
