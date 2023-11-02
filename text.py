@@ -1,10 +1,13 @@
 LAN = 0
-ITA = 0
-ENG = 1
+LAN_dict = {
+    "Italian": 0,
+    "English": 1
+}
 COUNTRIES = ['it','co.uk','de','fr','es']
 
 ft = ['File trovato','File found']
 File_trovato = {'green':ft[LAN],'#565B5E':''}
+Select_lan = ['Seleziona lingua\n(richiede il riavvio)','Select language\n(restart needed)']
 Errore = ['Errore','Error']
 Successo = ['Successo!','Success!']
 Modifica = ['Aggiungi o rimuovi','Add or remove']

@@ -10,7 +10,6 @@ import json
 import threading
 from bot import *
 from text import *
-import text
 from queue import *
 from credential_management import *
 
@@ -21,6 +20,12 @@ try:
     products = json.load(file)
 except:
     pass
+
+languages = list(LAN_dict.keys())
+try:
+    LAN = LAN_dict[products.pop("language")]
+except:
+    LAN = 1
 
 all_products = list()
 for (key,value) in products.items():
@@ -58,41 +63,6 @@ def support():
 
 c.set_appearance_mode("Dark")  # Modes: "System" (standard), "Dark", "Light"
 c.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark-blue"
-
-class LanguageSelection(c.CTk):
-    lan: int
-    def __init__(self):
-        super().__init__()
-        self._lan = -1
-        self.geometry("230x110")
-        self.grab_set()
-        self.resizable(False, False)
-        self.title(" ")
-        self.frame = c.CTkFrame(self, width=170, corner_radius=20)
-        self.grid_columnconfigure((0,1,2,3,4,5,6,7,8), weight=1)
-        self.grid_rowconfigure((0,2,4,6), weight=1)
-
-        self.select_label = c.CTkLabel(self, text="Select language", font=c.CTkFont(family="arial", size=15))
-        self.select_label.grid(row=0, column=4, padx=(0,0), pady=(10, 0))
-
-        self.ita_button = c.CTkButton(self, height=30, width=70, text="Italiano", font=c.CTkFont(family="arial", size=15, weight="bold"), command=self.set_ita)
-        self.ita_button.place(relx=0.1, rely=0.55)
-        self.en_button = c.CTkButton(self, height=30, width=70, text="English", font=c.CTkFont(family="arial", size=15, weight="bold"), command=self.set_en)
-        self.en_button.place(relx=0.6, rely=0.55)
-
-    def set_ita(self):
-        self._lan = 0
-        self.destroy()
-
-    def set_en(self):
-        self._lan = 1
-        self.destroy()
-
-    def get_lan(self):
-        self.mainloop()
-        if self._lan == -1:
-            exit()
-        return self._lan
 
 
 class Management(c.CTkToplevel):
@@ -213,7 +183,7 @@ class Logger(c.CTk):
         super().__init__()
 
         self._no_of_reports: int
-        self._no_of_reports = 1
+        self._no_of_reports = 0
         self._res: int
         self._res = -1
         default_font = c.CTkFont(family="arial", size=15, weight="bold")
@@ -262,26 +232,7 @@ class Logger(c.CTk):
             self.logger.configure(state="disabled")
             log = log_pipe.get(block=True)
             self.logger.configure(state="normal")
-            if isinstance(log, int):
-                match log:
-                    case -6:
-                        self.logger.insert("end", text="✔✔ TELEGRAM ALERT ✔✔\n")
-                    case -4:
-                        self.logger.insert("end", text="Checkout...\n")
-                    case -3:
-                        self.logger.insert("end", text="Login...\n")
-                    case -2:
-                        self.logger.insert("end", text="Adding to cart...\n")
-                    case 0:
-                        self.logger.insert("end", text="❌❌ BROWSER ERROR ❌❌\n")
-                    case 1:
-                        self.logger.insert("end", text="❌❌ MAIN PAGE ERROR ❌❌\n")
-                    case 2:
-                        self.logger.insert("end", text="❌❌ MAIL ERROR ❌❌\n")
-                    case 3:
-                        self.logger.insert("end", text="❌❌ CHECKOUT ERROR ❌❌\n")
-
-            elif isinstance(log, str):
+            if isinstance(log, str):
                 if log[0:3] == "#@$" and title_is_not_arrived:
                     title_is_not_arrived = 0
                     if len(log) < 40:
@@ -290,11 +241,11 @@ class Logger(c.CTk):
                         self.title(log[3:40] + "...")
 
                 elif log[0:3] == "&&&":             # messages
-                    self.logger.insert("end", text=log[3:])
-                    self.reports.configure(text=Segnalazioni[LAN] + f"{self._no_of_reports-1}")
                     if log[3] not in ['R','C','S','❌']:
                         cnt += 1
                         self._no_of_reports += 1
+                    self.logger.insert("end", text=log[3:])
+                    self.reports.configure(text=Segnalazioni[LAN] + f"{self._no_of_reports}")
                     if cnt == how_many_countries and how_many_countries > 1:
                         self.logger.insert("end",61*"-"+"\n")
                         cnt = 0
@@ -340,17 +291,22 @@ class App(c.CTk):
         self.sidebar_frame.grid_columnconfigure((0,1,2), weight=2)
         self.sidebar_frame.grid_rowconfigure(4, weight=1)
         self.logo_label = c.CTkLabel(self.sidebar_frame, text="Amazon\nBot", font=c.CTkFont(family="arial",size=30, weight="bold"))
-        self.logo_label.grid(row=0, column=0, columnspan=3, padx=20, pady=(20, 10))
+        self.logo_label.grid(row=0, column=0, columnspan=3, padx=20, pady=(20, 6))
         self.sidebar_start_button = c.CTkButton(self.sidebar_frame, height=40, text=Avvia[LAN], font=default_font, fg_color="green", hover_color="dark green", command=self.start_event)
         self.sidebar_start_button.grid(row=1, column=0, columnspan=3, padx=30, pady=10)
-        self.sidebar_exit_button = c.CTkButton(self.sidebar_frame, height=40, text=Esci[LAN], font=default_font, fg_color="#C41D1D", hover_color="dark red", command=self.exit_event)
+        self.sidebar_exit_button = c.CTkButton(self.sidebar_frame, height=40, text=Esci[LAN], font=default_font, fg_color="#C41D1D", hover_color="dark red", command=self.destroy)
         self.sidebar_exit_button.grid(row=2, column=0, columnspan=3, padx=20, pady=10)
+        self.sidebar_language_label = c.CTkLabel(self.sidebar_frame, text=Select_lan[LAN])
+        self.sidebar_language_label.place(relx=0.25,rely=0.65)
+        self.sidebar_language_selection = c.CTkOptionMenu(self.sidebar_frame, width=100, values=languages)
+        self.sidebar_language_selection.place(relx=0.25, rely=0.73)
+        self.sidebar_language_selection.set(languages[LAN])
         self.sidebar_guide_button = c.CTkButton(self.sidebar_frame, height=30, text=Guida[LAN], font=default_font, text_color="black", fg_color="yellow", command=self.guide_open)
         self.sidebar_guide_button.grid(row=6, column=0, columnspan=3, padx=20, pady=(188, 10))
         self.sidebar_discord_button = c.CTkButton(self.sidebar_frame, width=9, height=10, image=discord,  text='', fg_color="transparent", command=discord_open)
         self.sidebar_discord_button.grid(row=8, column=0, pady=0)
         self.sidebar_telegram_button = c.CTkButton(self.sidebar_frame, width=9, height=10, image=telegram, text='', fg_color="transparent", command=telegram_open)
-        self.sidebar_telegram_button.grid(row=8, column=1,pady=1)
+        self.sidebar_telegram_button.grid(row=8, column=1, pady=1)
         self.sidebar_support_button = c.CTkButton(self.sidebar_frame, width=10, height=10, image=support_img, text='', fg_color="transparent", hover_color="green", command=support)
         self.sidebar_support_button.grid(row=8, column=2,  pady=1)
 
@@ -400,7 +356,7 @@ class App(c.CTk):
 # -----------------------------------------------          SETTINGS        ------------------------------------------------------------
 
         self.settings_frame = c.CTkFrame(self, width=400, corner_radius=20)
-        self.settings_frame.grid(row=1, column=0, columnspan=8, rowspan=5, padx=(151,17), pady=(0,30))
+        self.settings_frame.grid(row=1, column=0, columnspan=8, rowspan=5, padx=(151-EN_SCALE*1100,17-EN_SCALE*850), pady=(0,30))
         self.settings_frame.grid_columnconfigure((0, 1, 2, 3, 4), weight=1)
         self.settings_frame.grid_rowconfigure((0, 1, 2, 3, 4, 5, 6, 7, 8), weight=1)
         self.chromedriver_label = c.CTkLabel(self.settings_frame, text="Chromedriver", font=default_font)
@@ -413,7 +369,7 @@ class App(c.CTk):
         self.telegram_label = c.CTkLabel(self.settings_frame, text=Telegram_Username[LAN], font=default_font)
         self.telegram_label.grid(row=4, column=0, padx=(70,0), pady=(10,0))
         self.telegram = c.CTkEntry(self.settings_frame, placeholder_text=Opzionale[LAN], width=250)
-        self.telegram.grid(row=5, columnspan=5,rowspan=8, padx=(20, 0), pady=(0, 60), sticky="w")
+        self.telegram.grid(row=5, columnspan=5,rowspan=8, padx=(20, EN_SCALE*500), pady=(0, 60))
         self.notif = c.CTkCheckBox(master=self.settings_frame, text=Modalita_notif[LAN], command=self.notif_activate)
         self.notif.place(relx=0.058, rely=0.83)
         self.time = c.CTkSlider(self.settings_frame, height=150, from_=30, to=300, number_of_steps=270, orientation="vertical", command=self.read_slider)
@@ -425,12 +381,12 @@ class App(c.CTk):
 # -----------------------------------------------          DETAILS        ------------------------------------------------------------
 
         self.details_frame = c.CTkFrame(self, width=208, corner_radius=20)
-        self.details_frame.place(relx=0.73, rely=0.518)
+        self.details_frame.place(relx=0.73-EN_SCALE*0.25, rely=0.518)
         self.details_frame.grid_columnconfigure((0,1), weight=1)
         self.details_frame.grid_rowconfigure((0,1), weight=1)
         self.radio_var = tkinter.IntVar(value=0)
         self.label_radio_group = c.CTkLabel(master=self.details_frame, text=Acquistare[LAN])
-        self.label_radio_group.grid(row=0, column=0, columnspan=10, padx=(20,50), pady=(10,185))
+        self.label_radio_group.grid(row=0, column=0, padx=(20,50+EN_SCALE*500), pady=(10,185))
         self.it = c.CTkCheckBox(master=self.details_frame, text="IT")
         self.it.place(relx=0.1, rely=0.2)
         self.it.select()
@@ -502,6 +458,7 @@ class App(c.CTk):
                                          hover_color="dark red", command=discard_event)
         other_options.remove_button.place(relx=0.65, rely=0.82)
 
+
     def error_window(self,msg):
         error_window = c.CTkToplevel(self)
         error_window.geometry("300x100")
@@ -540,7 +497,12 @@ class App(c.CTk):
             self.telegram.configure(placeholder_text='',text_color='white')
         self._notif += 1
 
-    def exit_event(self):
+    def destroy(self):
+        tkinter.Tk.destroy(self)
+        products["language"] = self.sidebar_language_selection.get()
+        file = open("prods.json", "w+")
+        json.dump(products, file)
+        file.close()
         exit()
 
     def guide_open(self):
@@ -667,7 +629,6 @@ class LogThread(threading.Thread):
 
 
 if __name__ == "__main__":
-    LAN = LanguageSelection().get_lan()
     if LAN == 1:
         EN_SCALE = 0.02
     File_trovato['green'] = ft[LAN]
