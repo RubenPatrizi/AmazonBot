@@ -6,6 +6,7 @@ import selenium.webdriver as wd
 import selenium.webdriver.common.by
 from selenium.webdriver.chrome.options import Options
 from text import *
+import os
 
 
 def send_conf(title,price,usr):
@@ -66,17 +67,17 @@ def bot(LAN, LIMIT_VALUE, LOGIN_MAIL, LOGIN_PASSWORD, COUNTRY, TELEGRAM, PATH, I
         pass
 
     while True:
-        error_code = 0
         success = 0
         price_single = 0
         price_multi = 0
+        country_date = f"{COUNTRY.upper()}:  {datetime.now().strftime('%d/%m - %H:%M:%S')}"
 
         try:
-            seller_position = -1
+            seller_position = 0
             all_offers = b.find_elements('id', 'aod-offer')
-            while price_multi <= 0:  # check multiple aod offers until one with right conditions
-                seller_position += 1  # and allowed seller is found. It will already be the
-                price = all_offers[seller_position].text  # lowest price one since they are already sorted by price
+            while price_multi <= 0 and seller_position < len(all_offers):  # check multiple aod offers until one with right conditions
+                price = all_offers[seller_position].text      # and allowed seller is found. It will already be the
+                seller_position += 1                          # lowest price one since they are already sorted by price
                 if filter_conditions(price, CONDITIONS, COUNTRY) and filter_sellers(price, SELLERS, COUNTRY):
                     price_multi = get_price_from_text(price)
                 else:
@@ -97,14 +98,14 @@ def bot(LAN, LIMIT_VALUE, LOGIN_MAIL, LOGIN_PASSWORD, COUNTRY, TELEGRAM, PATH, I
                 cart_id = 3
                 price = price_single
             elif (price_single > price_multi > 0 or price_single == 0) or (0 < price_multi and price_single == -1):
-                cart_id = 3+(seller_position+1)*3
+                cart_id = 3*(seller_position+1)
                 price = price_multi
             if 0 < price <= LIMIT_VALUE:
-                log_pipe.put(f"&&&{COUNTRY.upper()}:  {datetime.now().strftime('%d/%m - %H:%M:%S')} - {price}{coin} ({percentage_diff(LIMIT_VALUE,price)}%) ✔\n")
+                log_pipe.put(f"$$${country_date} - {price}{coin} ({percentage_diff(LIMIT_VALUE,price)}%) ✔\n")
                 if NOTIF:
                     b.get(send_notif(title, price, TELEGRAM, ITEM_URL_FOR_TG))
                     time.sleep(5)
-                    log_pipe.put(-6)      #TELEGRAM ALERT
+                    log_pipe.put("&&&Telegram alert sent...\n")      #TELEGRAM ALERT
                     b.stop_client()
                     exit()
                 atc = b.find_elements('class name','a-button-input')
@@ -112,7 +113,7 @@ def bot(LAN, LIMIT_VALUE, LOGIN_MAIL, LOGIN_PASSWORD, COUNTRY, TELEGRAM, PATH, I
                     loc = atc[cart_id].location
                     b.set_window_position(loc['x'],loc['y'])
                     atc[cart_id].click()
-                    log_pipe.put(-2)       # ADD TO CART
+                    log_pipe.put("&&&Adding to cart...\n")       # ADD TO CART
                 except:
                     pass
                 time.sleep(1)
@@ -120,7 +121,7 @@ def bot(LAN, LIMIT_VALUE, LOGIN_MAIL, LOGIN_PASSWORD, COUNTRY, TELEGRAM, PATH, I
                 time.sleep(1)
                 b.find_element('id','sc-buy-box-ptc-button').click()
                 error_code = 2  # LOGIN ERROR
-                log_pipe.put(-3)  # LOGIN
+                log_pipe.put("&&&Logging in...\n")  # LOGIN
 
                 if len(b.find_elements('id','phone-tab')) > 0:
                     b.find_element('id', 'email-tab').click()
@@ -142,7 +143,7 @@ def bot(LAN, LIMIT_VALUE, LOGIN_MAIL, LOGIN_PASSWORD, COUNTRY, TELEGRAM, PATH, I
                 except:
                     pass
                 error_code = 3      # CHECKOUT ERROR
-                log_pipe.put(-4)     # CHECKOUT
+                log_pipe.put("&&&Checkout...\n")     # CHECKOUT
                 try:
                     b.find_element('id','shipToThisAddressButton').click()
                     time.sleep(5)
@@ -169,18 +170,26 @@ def bot(LAN, LIMIT_VALUE, LOGIN_MAIL, LOGIN_PASSWORD, COUNTRY, TELEGRAM, PATH, I
                     pass
             else:
                 if price in [2,999999]:
-                    log_pipe.put(f"&&&{COUNTRY.upper()}:  {datetime.now().strftime('%d/%m - %H:%M:%S')} - Unable to get price\n")
+                    log_pipe.put(f"$$${country_date} - Unable to get price\n")
                 elif price == -1:
-                    log_pipe.put(f"&&&{COUNTRY.upper()}:  {datetime.now().strftime('%d/%m - %H:%M:%S')} - No offer available\n")
+                    log_pipe.put(f"$$${country_date} - No offer available\n")
                 else:
-                    log_pipe.put(f"&&&{COUNTRY.upper()}:  {datetime.now().strftime('%d/%m - %H:%M:%S')} - {price}{coin} ({percentage_diff(LIMIT_VALUE,price)}%) ❌\n")
+                    log_pipe.put(f"$$${country_date} - {price}{coin} ({percentage_diff(LIMIT_VALUE,price)}%) ❌\n")
                 for seller_position in range(0,REFRESH):
                     if not bot_pipe.empty():
                         exit()
                     time.sleep(1)
                 b.refresh()
+        except SystemExit:
+            exit()
         except:                                # error management
-            log_pipe.put(error_code)
+            match error_code:
+                case 1:
+                    log_pipe.put("&&&MAIN PAGE ERROR\n")
+                case 2:
+                    log_pipe.put("&&&LOGIN ERROR\n")
+                case 3:
+                    log_pipe.put("&&&CHECKOUT ERROR\n")
             if bot_pipe.empty():
                 if COUNTRY == 'uk':
                     COUNTRY = 'co.uk'

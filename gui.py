@@ -5,7 +5,7 @@ import customtkinter as c
 from PIL import Image
 import webbrowser
 from typing import Union
-from os import listdir
+from os import listdir,_exit
 import json
 import threading
 from bot import *
@@ -34,7 +34,7 @@ for (key,value) in products.items():
 
 EN_SCALE = 0
 notif_cnt = 0
-how_many_countries = 0
+number_of_countries = 0
 file_ok = ""
 
 x = os.path.realpath(os.path.dirname(__file__))
@@ -212,8 +212,8 @@ class Logger(c.CTk):
     def kill(self):
         if self._res == -1:
             bot_pipe.put(False)
-        self.grab_release()
-        self.destroy()
+        tkinter.Tk.destroy(self)
+        exit()
 
     def delete_history(self):
         self.logger.configure(state="normal")
@@ -227,31 +227,32 @@ class Logger(c.CTk):
         cnt = 0
         while True:
             if not bot_pipe.empty():
-                self.destroy()
-                exit()
+                return
             self.logger.configure(state="disabled")
             log = log_pipe.get(block=True)
             self.logger.configure(state="normal")
             if isinstance(log, str):
-                if log[0:3] == "#@$" and title_is_not_arrived:
+                if log[0:3] == "#@$" and title_is_not_arrived:     # title
                     title_is_not_arrived = 0
                     if len(log) < 40:
                         self.title(log[3:40])
                     else:
                         self.title(log[3:40] + "...")
 
-                elif log[0:3] == "&&&":             # messages
-                    if log[3] not in ['R','C','S','❌']:
-                        cnt += 1
-                        self._no_of_reports += 1
+                elif log[0:3] == "$$$":             # price reports
+                    cnt += 1
+                    self._no_of_reports += 1
                     self.logger.insert("end", text=log[3:])
-                    self.reports.configure(text=Segnalazioni[LAN] + f"{self._no_of_reports}")
-                    if cnt == how_many_countries and how_many_countries > 1:
+                    self.reports.configure(text=f"{Segnalazioni[LAN]} {self._no_of_reports}")
+                    if cnt == number_of_countries and number_of_countries > 1:
                         self.logger.insert("end",61*"-"+"\n")
                         cnt = 0
 
+                elif log[0:3] == "&&&":           # errors and messages
+                    self.logger.insert("end", text=log[3:])
+
             else:
-                self.logger.insert("end", text="Wrong pipe format")
+                self.logger.insert("end", text="Wrong pipe format\n")
             self.logger.configure(state="disabled")
 
 
@@ -590,13 +591,13 @@ class App(c.CTk):
         # AMAZON SETTINGS
         stores = []
         i = -1
-        global how_many_countries
+        global number_of_countries
         for store in self._stores:
             i += 1
             if store.get():
                 stores.append(COUNTRIES[i])
-                how_many_countries += 1
-        if how_many_countries == 0:
+                number_of_countries += 1
+        if number_of_countries == 0:
             success = 0
             for store in self._stores:
                 store.configure(border_color="red", border_width=2)
