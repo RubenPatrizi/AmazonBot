@@ -7,6 +7,10 @@ COUNTRIES = ['it','co.uk','de','fr','es']
 
 ft = ['File trovato','File found']
 File_trovato = {'green':ft[LAN],'#565B5E':''}
+Download_manuale = ['Download manuale','Manual download']
+Download_diretto = ['Download diretto','Direct download']
+Download_diretto_exp = ['Verrà scaricata la versione più recente\ndi chromedriver per Windows x64',
+                        'This will download the most recent\nchromedriver version for Windows x64']
 Select_lan = ['Seleziona lingua\n(richiede il riavvio)','Select language\n(restart needed)']
 Errore = ['Errore','Error']
 Successo = ['Successo!','Success!']
@@ -54,6 +58,7 @@ Venditori = ['Venditori','Sellers']
 Captcha = ['Captcha rilevato...\n','Captcha detected...\n']
 Nome = ['Nome','Name']
 Qualcosa = ['Qualcosa è andato storto :(','Something went wrong :(']
+Chromedriver_success = ['Chromedriver scaricato\ncorrettamente','Chromedriver downloaded\nsuccessfully']
 Version_error = ['Versione Chromedriver non supportata!\nScaricare una versione aggiornata...',
                  'Chromedriver version not supported!\nTry downloading a newer version...']
 Si = ['Sì','Yes']
@@ -81,6 +86,13 @@ SOLD_BY = {
     'de': "Sold by",
     'fr': "Vendeur",
     'es': "Vendedor"
+}
+ADD_TO_CART = {
+    'it': "Aggiungi al carrello",
+    'uk': "Add to Basket",
+    'de': "Add to Basket",
+    'fr': "Ajouter au panier",
+    'es': "Añadir a la cesta"
 }
 
 INFO_MNG_IT = 'Per aggiungere un prodotto inserire il suo codice e assegnargli\n' \
@@ -149,7 +161,10 @@ GUIDE_TEXT_EN = '1) Chromedriver.exe\n\n' \
 
 GUIDE_TEXT = [GUIDE_TEXT_IT,GUIDE_TEXT_EN]
 
-chrome_link = 'https://chromedriver.chromium.org/downloads'
+chromedriver_link = 'https://chromedriver.chromium.org/downloads'
+direct_download_page = 'https://googlechromelabs.github.io/chrome-for-testing/'
 discord_link = ''    # your discord server
 telegram_link = ''    # your telegram group
 support_link = 'https://www.paypal.me/ssswordsman'
+
+direct_download_link_pattern = "https:\/\/storage\.googleapis\.com\/chrome-for-testing-public\/[\d|.]+\/win64\/chromedriver-win64\.zip"

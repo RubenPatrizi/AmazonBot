@@ -1,18 +1,23 @@
 import os.path
+import random
 import tkinter
 import tkinter.filedialog
 import customtkinter as c
 from PIL import Image
 import webbrowser
 from typing import Union
-from os import listdir,_exit
+from os import listdir
 import json
 import threading
 from bot import *
 from text import *
 from queue import *
 from credential_management import *
+from download import start_direct_download
 
+
+c.set_appearance_mode("Dark")  # Modes: "System" (standard), "Dark", "Light"
+c.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark-blue"
 
 products = dict()
 try:
@@ -34,22 +39,27 @@ for (key,value) in products.items():
 
 EN_SCALE = 0
 notif_cnt = 0
-number_of_countries = 0
+how_many_countries = 0
 file_ok = ""
+chrome_ok = ""
+download_finished_status = 0
 
-x = os.path.realpath(os.path.dirname(__file__))
-x = x.replace("\\","/")
-if "chromedriver.exe" in listdir(x):
-    chrome_ok = "green"
-else:
-    chrome_ok = "#565B5E"
-x = x + "/media/"
+current_path = os.path.realpath(os.path.dirname(__file__))
+current_path = current_path.replace("\\","/")
+media_path = current_path + "/media/"
 
 log_pipe = Queue()
 bot_pipe = Queue()
 
+def check_chromedriver():
+    global chrome_ok
+    if "chromedriver.exe" in listdir(current_path):
+        chrome_ok = "green"
+    else:
+        chrome_ok = "#565B5E"
+
 def chrome_open():
-    webbrowser.open(chrome_link)
+    webbrowser.open(chromedriver_link)
 
 def discord_open():
     webbrowser.open(discord_link)
@@ -60,9 +70,15 @@ def telegram_open():
 def support():
     webbrowser.open(support_link)
 
+def direct_download_chromedriver() -> int:
+    return start_direct_download(current_path)
 
-c.set_appearance_mode("Dark")  # Modes: "System" (standard), "Dark", "Light"
-c.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark-blue"
+def get_centered_geometry_string(window: c.CTk, w: int, h: int) -> str:
+    ws = window.winfo_screenwidth()
+    hs = window.winfo_screenheight()
+    x = int(ws/2) - int(w/2)
+    y = int(hs/2) - int(h/2)
+    return "%dx%d+%d+%d" % (w, h, x, y)
 
 
 class Management(c.CTkToplevel):
@@ -70,7 +86,7 @@ class Management(c.CTkToplevel):
         super().__init__()
         self._upd: Union[int, None] = None
         self._upd = 0
-        self.geometry("400x270")
+        self.geometry(get_centered_geometry_string(self,w=400,h=270))
         self.grab_set()
         self.resizable(False, False)
         self.title(Gestisci[LAN])
@@ -155,7 +171,7 @@ class Management(c.CTkToplevel):
 
     def error_window(self,msg):
         error_window = c.CTkToplevel(self)
-        error_window.geometry("300x100")
+        error_window.geometry(get_centered_geometry_string(error_window,w=300,h=100))
         error_window.resizable(False, False)
         error_window.grab_set()
         error_window.title(Errore[LAN])
@@ -165,7 +181,7 @@ class Management(c.CTkToplevel):
         error_window.label.grid(row=0, column=0, padx=(20,0), pady=(25,0))
         error_window.button = c.CTkButton(error_window, text="OK", command=error_window.destroy)
         error_window.button.grid(row=1, column=0, padx=(50,0), pady=(20,0))
-        pic = c.CTkImage(dark_image=Image.open(f"{x}exclamation.png"), size=(60,60))
+        pic = c.CTkImage(dark_image=Image.open(f"{media_path}exclamation.png"), size=(60,60))
         error_window.pic = c.CTkButton(error_window, image=pic, width=50, text="", fg_color="transparent", hover=False)
         error_window.pic.place(relx=0.7, rely=0.13)
 
@@ -190,7 +206,7 @@ class Logger(c.CTk):
 
         # configure window
         self.title("Logger")
-        self.geometry("500x600")
+        self.geometry(get_centered_geometry_string(self,w=500,h=600))
         self.resizable(False, False)
 
         # configure grid layout
@@ -203,7 +219,7 @@ class Logger(c.CTk):
         self.reports = c.CTkLabel(self, width=40, font=c.CTkFont(family="arial", size=13, weight="bold"), text=Segnalazioni[LAN] + '0')
         self.reports.place(relx=0.08, rely=0.913)
 
-        self.exit_button = c.CTkButton(self, height=40, text=Esci[LAN], font=default_font, fg_color="red", hover_color="dark red", command=self.kill)
+        self.exit_button = c.CTkButton(self, height=40, text=Esci[LAN], font=default_font, fg_color="#C41D1D", hover_color="dark red", command=self.kill)
         self.exit_button.grid(row=4, column=2, columnspan=2, padx=30, pady=10)
 
         self.delete_history = c.CTkButton(self, height=30, width=50, text=Cronologia[LAN], font=c.CTkFont(family="arial", size=12, weight="bold"), command=self.delete_history)
@@ -212,8 +228,8 @@ class Logger(c.CTk):
     def kill(self):
         if self._res == -1:
             bot_pipe.put(False)
-        tkinter.Tk.destroy(self)
-        exit()
+        self.grab_release()
+        self.destroy()
 
     def delete_history(self):
         self.logger.configure(state="normal")
@@ -227,32 +243,30 @@ class Logger(c.CTk):
         cnt = 0
         while True:
             if not bot_pipe.empty():
-                return
+                exit()
             self.logger.configure(state="disabled")
             log = log_pipe.get(block=True)
             self.logger.configure(state="normal")
             if isinstance(log, str):
-                if log[0:3] == "#@$" and title_is_not_arrived:     # title
+                if log[0:3] == "#@$" and title_is_not_arrived:
                     title_is_not_arrived = 0
                     if len(log) < 40:
                         self.title(log[3:40])
                     else:
                         self.title(log[3:40] + "...")
 
-                elif log[0:3] == "$$$":             # price reports
-                    cnt += 1
-                    self._no_of_reports += 1
+                elif log[0:3] == "&&&":             # messages
+                    if log[3] not in ['R','C','S','❌']:
+                        cnt += 1
+                        self._no_of_reports += 1
                     self.logger.insert("end", text=log[3:])
-                    self.reports.configure(text=f"{Segnalazioni[LAN]} {self._no_of_reports}")
-                    if cnt == number_of_countries and number_of_countries > 1:
+                    self.reports.configure(text=Segnalazioni[LAN] + f"{self._no_of_reports}")
+                    if cnt == how_many_countries and how_many_countries > 1:
                         self.logger.insert("end",61*"-"+"\n")
                         cnt = 0
 
-                elif log[0:3] == "&&&":           # errors and messages
-                    self.logger.insert("end", text=log[3:])
-
             else:
-                self.logger.insert("end", text="Wrong pipe format\n")
+                self.logger.insert("end", text="Wrong pipe format")
             self.logger.configure(state="disabled")
 
 
@@ -266,19 +280,20 @@ class App(c.CTk):
         self._notif: int
         self._notif = 0
         self._stores = []
+        self._guide_window = None
         default_font = c.CTkFont(family="arial", size=15, weight="bold")
-        telegram = c.CTkImage(dark_image=Image.open(f"{x}telegram.png"), size=(39, 32))
-        discord = c.CTkImage(dark_image=Image.open(f"{x}discord.png"), size=(38, 28))
-        support_img = c.CTkImage(dark_image=Image.open(f"{x}support.png"), size=(30, 30))
-        mng = c.CTkImage(dark_image=Image.open(f"{x}mng.png"), size=(30, 30))
-        fld = c.CTkImage(dark_image=Image.open(f"{x}folder.png"), size=(31, 25))
-        stg = c.CTkImage(dark_image=Image.open(f"{x}stg.png"), size=(30, 30))
+        telegram = c.CTkImage(dark_image=Image.open(f"{media_path}telegram.png"), size=(39, 32))
+        discord = c.CTkImage(dark_image=Image.open(f"{media_path}discord.png"), size=(38, 28))
+        support_img = c.CTkImage(dark_image=Image.open(f"{media_path}support.png"), size=(30, 30))
+        mng = c.CTkImage(dark_image=Image.open(f"{media_path}mng.png"), size=(30, 30))
+        fld = c.CTkImage(dark_image=Image.open(f"{media_path}folder.png"), size=(31, 25))
+        stg = c.CTkImage(dark_image=Image.open(f"{media_path}stg.png"), size=(30, 30))
 
         mail, password = get_credentials()
 
         # configure window
-        self.title("AmazonBot")
-        self.geometry("830x490")
+        self.title("Amazon Bot © @swordsman210")
+        self.geometry(get_centered_geometry_string(self,w=830,h=486))
         self.resizable(False, False)
 
         # configure grid layout
@@ -302,7 +317,7 @@ class App(c.CTk):
         self.sidebar_language_selection = c.CTkOptionMenu(self.sidebar_frame, width=100, values=languages)
         self.sidebar_language_selection.place(relx=0.25, rely=0.73)
         self.sidebar_language_selection.set(languages[LAN])
-        self.sidebar_guide_button = c.CTkButton(self.sidebar_frame, height=30, text=Guida[LAN], font=default_font, text_color="black", fg_color="yellow", command=self.guide_open)
+        self.sidebar_guide_button = c.CTkButton(self.sidebar_frame, height=30, text=Guida[LAN], font=default_font, text_color="black", fg_color="#ffd900", hover_color="#b8ab02", command=self.guide_open)
         self.sidebar_guide_button.grid(row=6, column=0, columnspan=3, padx=20, pady=(188, 10))
         self.sidebar_discord_button = c.CTkButton(self.sidebar_frame, width=9, height=10, image=discord,  text='', fg_color="transparent", command=discord_open)
         self.sidebar_discord_button.grid(row=8, column=0, pady=0)
@@ -406,15 +421,15 @@ class App(c.CTk):
         self._stores.append(self.es)
         self.headless = c.CTkCheckBox(master=self.details_frame, text="Headless mode")
         self.headless.place(relx=0.1, rely=0.6)
-        self.headless.select()
+        #self.headless.select()
         self.settings_button = c.CTkButton(self.details_frame, width=50, height=30, image=stg, text=Opzioni[LAN], corner_radius=100, hover=True, command=self.other_options)
         self.settings_button.place(relx=0.068, rely=0.77)
 
     def other_options(self):
         other_options = c.CTkToplevel(self)
-        other_options.geometry("400x300")
-        other_options.resizable(False, False)
+        other_options.geometry(get_centered_geometry_string(other_options,w=400,h=300))
         other_options.grab_set()
+        other_options.resizable(False, False)
         other_options.title(Opzioni[LAN])
 
         def save_event():
@@ -450,19 +465,19 @@ class App(c.CTk):
         other_options.sellers_description = c.CTkLabel(other_options, text=INFO_SLR[LAN],justify="left")
         other_options.sellers_description.place(relx=0.08, rely=0.5)
 
-        other_options.save_button = c.CTkButton(other_options, height=30, width=100, text=Salva[LAN],
-                                      font=c.CTkFont(family="arial", size=15, weight="bold"), fg_color="green",
-                                      hover_color="dark green", command=save_event)
-        other_options.save_button.place(relx=0.13, rely=0.82)
         other_options.remove_button = c.CTkButton(other_options, height=30, width=100, text=Annulla[LAN],
                                          font=c.CTkFont(family="arial", size=15, weight="bold"), fg_color="#C41D1D",
                                          hover_color="dark red", command=discard_event)
-        other_options.remove_button.place(relx=0.65, rely=0.82)
+        other_options.remove_button.place(relx=0.13, rely=0.82)
+        other_options.save_button = c.CTkButton(other_options, height=30, width=100, text=Salva[LAN],
+                                      font=c.CTkFont(family="arial", size=15, weight="bold"), fg_color="green",
+                                      hover_color="dark green", command=save_event)
+        other_options.save_button.place(relx=0.65, rely=0.82)
 
 
     def error_window(self,msg):
         error_window = c.CTkToplevel(self)
-        error_window.geometry("300x100")
+        error_window.geometry(get_centered_geometry_string(error_window,w=300,h=100))
         error_window.resizable(False, False)
         error_window.grab_set()
         error_window.title(Errore[LAN])
@@ -472,12 +487,12 @@ class App(c.CTk):
         error_window.label.grid(row=0, column=0, padx=(20, 0), pady=(25, 0))
         error_window.button = c.CTkButton(error_window, text="OK", command=error_window.destroy)
         error_window.button.grid(row=1, column=0, padx=(50, 0), pady=(20, 0))
-        pic = c.CTkImage(dark_image=Image.open(f"{x}exclamation.png"), size=(60, 60))
+        pic = c.CTkImage(dark_image=Image.open(f"{media_path}exclamation.png"), size=(60, 60))
         error_window.pic = c.CTkButton(error_window, image=pic, width=50, text="", fg_color="transparent", hover=False)
         error_window.pic.place(relx=0.7, rely=0.13)
 
     def file_browse(self):
-        path = tkinter.filedialog.askopenfilename(initialdir=x[:-6],title="Select Chromedriver", filetypes=(("", ""), ("", ".exe")))
+        path = tkinter.filedialog.askopenfilename(initialdir=media_path[:-6],title="Select Chromedriver", filetypes=(("", ""), ("", ".exe")))
         self.chromedriver.insert(0,path)
 
     def read_slider(self,value):
@@ -508,7 +523,8 @@ class App(c.CTk):
 
     def guide_open(self):
         guide_window = c.CTkToplevel(self)
-        guide_window.geometry(f"700x{700-EN_SCALE*4000}")
+        self._guide_window = guide_window
+        guide_window.geometry(get_centered_geometry_string(guide_window,w=700,h=700-EN_SCALE*4000))
         guide_window.grab_set()
         guide_window.resizable(False,False)
         guide_window.title(Guida_utilizzo[LAN])
@@ -516,10 +532,98 @@ class App(c.CTk):
         guide_window.grid_rowconfigure(1, weight=1)
 
         guide_window.guide = c.CTkLabel(master=guide_window, text=GUIDE_TEXT[LAN])
-        guide_window.guide.grid(row=0, column=0, padx=20, pady=10)
+        guide_window.guide.grid(row=0, column=0, columnspan=2, padx=20, pady=10)
 
-        guide_window.download_button = c.CTkButton(guide_window, height=30, text="Download Chromedriver", command=chrome_open)
+        guide_window.download_button = c.CTkButton(guide_window, height=30, text=Download_manuale[LAN], command=chrome_open)
         guide_window.download_button.grid(row=1, column=0, padx=20, pady=10)
+        guide_window.direct_download_button = c.CTkButton(guide_window, height=30, text=Download_diretto[LAN], command=self.attempt_chromedriver_download)
+        guide_window.direct_download_button.grid(row=1, column=1, padx=20, pady=10)
+
+    def attempt_chromedriver_download(self):
+        popup = self.open_confirmation_popup()
+        popup.master.wait_window(popup)
+        choice = popup._choice
+        if not choice:
+            return
+        pb_thread = threading.Thread(target=self.open_progressbar)
+        pb_thread.start()
+        result = direct_download_chromedriver()
+        global download_finished_status
+        download_finished_status = result
+    
+    def open_confirmation_popup(self):
+        conf_popup = c.CTkToplevel(self._guide_window)
+        conf_popup.geometry(get_centered_geometry_string(conf_popup,w=300,h=100))
+        conf_popup.title('')
+        conf_popup.grab_set()
+        conf_popup.resizable(False,False)
+        conf_popup.grid_columnconfigure((0,1),weight=5)
+        conf_popup.grid_rowconfigure(1, weight=1)
+        conf_popup._choice = False
+
+        conf_popup.guide = c.CTkLabel(master=conf_popup, text=Download_diretto_exp[LAN])
+        conf_popup.guide.grid(row=0, column=0, columnspan=2, padx=20, pady=10)
+
+        def close_popup():
+            conf_popup.destroy()
+        conf_popup.close_button = c.CTkButton(conf_popup, height=30, text=Annulla[LAN], command=close_popup)
+        conf_popup.close_button.grid(row=1, column=0, padx=20, pady=10)
+
+        def send_confirm():
+            conf_popup._choice = True
+            conf_popup.destroy()
+        conf_popup.confirm_button = c.CTkButton(conf_popup, height=30, text=Conferma[LAN], command=send_confirm)
+        conf_popup.confirm_button.grid(row=1, column=1, padx=20, pady=10)
+
+        return conf_popup
+    
+    def open_progressbar(self):
+        pb = self.progressbar()
+        global download_finished_status
+        time.sleep(1+random.randint(1,3))
+        global chrome_ok
+        while True:
+            if download_finished_status > 0:
+                pb._close()
+                try:
+                    chrome_ok = "green"
+                    self.chromedriver.delete(0,"end")
+                    self.chromedriver.insert(0,File_trovato[chrome_ok])
+                    SuccessWindow(type="success").mainloop()
+                except: pass
+                break
+            elif download_finished_status < 0:
+                pb._close()
+                try:
+                    chrome_ok = "#565B5E"
+                    self.chromedriver.delete(0,"end")
+                    SuccessWindow(type="error").mainloop()
+                except: pass
+                break
+        self.chromedriver.configure(border_color=chrome_ok)
+        return
+
+    def progressbar(self):
+        pb = c.CTkToplevel(self._guide_window)
+        pb._result = -1
+        pb.geometry(get_centered_geometry_string(pb,w=300,h=100))
+        pb.resizable(False, False)
+        pb.grab_set()
+        pb.title('')
+        pb.frame = c.CTkFrame(pb, width=170, corner_radius=20)
+        pb.grid_columnconfigure(0, weight=1)
+        pb.grid_rowconfigure(0, weight=1)
+
+        pb.progress_bar = c.CTkProgressBar(pb, orientation="horizontal", mode="indeterminate")
+        pb.progress_bar.grid(row=0, column=0)
+        pb.progress_bar.start()
+
+        def close():
+            pb.progress_bar.stop()
+            pb.destroy()
+
+        pb._close = close
+        return pb
 
     def open_management(self):
         upd = Management().get_upd()
@@ -579,7 +683,7 @@ class App(c.CTk):
             else:
                 self.chromedriver.configure(border_color="#565B5E")
         else:
-            chromedriver = x[:-6] + "chromedriver.exe"
+            chromedriver = media_path[:-6] + "chromedriver.exe"
         telegram = self.telegram.get()
         if (len(telegram) != 0 and telegram[0] != '@') or (len(telegram) == 0 and notif):
             self.telegram.configure(border_color="red", border_width=2)
@@ -591,13 +695,13 @@ class App(c.CTk):
         # AMAZON SETTINGS
         stores = []
         i = -1
-        global number_of_countries
+        global how_many_countries
         for store in self._stores:
             i += 1
             if store.get():
                 stores.append(COUNTRIES[i])
-                number_of_countries += 1
-        if number_of_countries == 0:
+                how_many_countries += 1
+        if how_many_countries == 0:
             success = 0
             for store in self._stores:
                 store.configure(border_color="red", border_width=2)
@@ -621,6 +725,38 @@ class App(c.CTk):
             l.logger.mainloop()
             exit()
 
+
+class SuccessWindow(c.CTkToplevel):
+    def __init__(self, type: str):
+        super().__init__()
+        self.geometry(get_centered_geometry_string(self,w=300,h=150))
+        self.grab_set()
+        self.resizable(False, False)
+        self.title("")
+        self.frame = c.CTkFrame(self, width=170, corner_radius=20)
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure((0,1), weight=1)
+        self.grid_columnconfigure((0,1), weight=0)
+
+        match type:
+            case "success":
+                self.message = Chromedriver_success[LAN]
+                self.media = f"{media_path}success.png"
+            case "error":
+                self.message = Qualcosa[LAN]
+                self.media = f"{media_path}exclamation.png"
+
+        self.label = c.CTkLabel(self, text=self.message, height=10)
+        self.label.grid(row=0, column=0, padx=(20, 0), pady=(25, 0))
+        self.button = c.CTkButton(self, text="OK", width=75, command=self.close)
+        self.button.grid(row=1, column=0, padx=(20, 0))
+        pic = c.CTkImage(dark_image=Image.open(self.media), size=(60, 60))
+        self.pic = c.CTkButton(self, image=pic, width=50, text="", fg_color="transparent", hover=False)
+        self.pic.grid(row=0, rowspan=2, column=1, padx=(20,0))
+    
+    def close(self):
+        self.destroy()
+
 class LogThread(threading.Thread):
     logger: Logger
 
@@ -632,5 +768,6 @@ class LogThread(threading.Thread):
 if __name__ == "__main__":
     if LAN == 1:
         EN_SCALE = 0.02
+    check_chromedriver()
     File_trovato['green'] = ft[LAN]
     App().mainloop()
